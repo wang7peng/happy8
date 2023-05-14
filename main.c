@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h> // strcat strcmp strcpy strlen
 #include <time.h>
+#include <unistd.h>
 
 // avoid choosing this 5 ball, they rarely appear in each night result. :(
 typedef struct {
@@ -156,7 +157,7 @@ void getOneRow(int arr[]) {
         arr[0] = getelement(80);
         arr[1] = getelement(80);
         arr[2] = getelement(80);
-        if (arr[1] != arr[2] && arr[1] != arr[2] && arr[1]!=arr[3])
+        if (arr[0] != arr[1] && arr[0] != arr[2] && arr[1]!=arr[2])
         break;
   }
 
@@ -170,10 +171,11 @@ void algo_getArrImage(int (*arr)[3], // priority: 1-[ , 2-*
     arr[1][i] = (srcArr[1][i] + 2) % 80;
     arr[3][i] = (srcArr[3][i] - 2 + 80) % 80;
     arr[4][i] = (srcArr[4][i] - 3 + 80) % 80;
+    arr[i+1][0] = (arr[i][0] + srcArr[i+1][1]) % 80;
   }
-  arr[2][0] = srcArr[2][0] + 10;
+  arr[2][0] = (srcArr[2][0] + 23) % 80;
   arr[2][1] = srcArr[2][1];
-  arr[2][2] = srcArr[2][2] - 10;
+  arr[2][2] = (srcArr[2][2] - 23 + 80) % 80;
 }
 
 int checkBigTotal(int (*arr)[3]){
@@ -196,32 +198,44 @@ int checkBigTotal(int (*arr)[3]){
 
 int main(int argc, char** argv) {
   int row[5][3] = {0};
+  int row2[5][3] = {0};
+  
   srand((unsigned)time(NULL));
   
   int avoidLastRes[6] = {0};
   setOverlap(avoidLastRes);
   ColdballRecord ar = getColdfromFile();
-  int avoidCold[6] = {ar.balloldest, ar.ball2, ar.ball3, ar.ball4, ar.ball5, ar.ballmaybe};
-  
+  int avoidCold[6] = {ar.balloldest, ar.ball3, ar.ball4, ar.ball5, ar.ball2, ar.ballmaybe};
+
   for (int i = 0; i < 6; i++)
     printf("%-3d%-3d", avoidLastRes[i], avoidCold[i]);
   putchar(10);
-  
-  int row2[5][3] = {0};
-  while (1) {
-    for (int i = 0; i < 5; i++) {
-      getOneRow(row[i]);
-      if (existSame(row[i], sizeof(row[i])/4, avoidLastRes, 6))
-    	  i--; // again
-      if (existSame(row[i], sizeof(row[i])/4, avoidCold, 6))
-         i--;
-    }
 
+  while (1) {
+    // A ticket at most has 5 different bets 
+    int i;
+    for (i = 0; i < 5; i++) {
+      getOneRow(row[i]);
+
+      if (existSame(row[i], sizeof(row[i])/4, avoidLastRes, 6) ||
+           existSame(row[i], sizeof(row[i])/4, avoidCold, 6))
+    	  i--; // again
+    }
+  
     
     algo_getArrImage(row2, row, 3);
-  
+
+    for (i = 0; i < 5; i++) {
+      if (existSame(row2[i], sizeof(row2[i])/4, avoidLastRes, 3) ||
+        existSame(row2[i], sizeof(row2[i])/4, avoidCold, 4)) {
+        sleep(1);
+        getOneRow(row2[i]);
+        i--; // otherwise again
+      }
+    }
+ 
     if (checkBigTotal(row) && checkBigTotal(row2))
-      break; // bigNum - smallNum <= 4
+      break; 
   }
 
   char *hr = "-- -- --";
