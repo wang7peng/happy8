@@ -1,7 +1,66 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // strcat strlen
+#include <string.h> // strcat strcmp strcpy strlen
 #include <time.h>
+
+// avoid choosing this 5 ball, they rarely appear in each night result. :(
+typedef struct {
+  char time[10];
+  int balloldest;
+  int ball2;
+  int ball3;
+  int ball4;
+  int ball5;
+  int ballmaybe;
+}ColdballRecord;
+
+const
+char* getLastNightDate() {
+  FILE *fp;
+  static char timeStr[10];
+  
+  // get time format, e.g 2023-0520
+  fp = popen("date -d'1 day ago' +%Y-%m%d", "r");
+  fgets(timeStr, sizeof(timeStr), fp);
+  return timeStr;
+}
+
+ColdballRecord getColdfromFile() {
+  FILE *fp;
+  ColdballRecord br = {"2023-0520", 0, 0, 0, 0, 0};
+    
+  char buf[30];  
+  char yesterday[10];
+  strcpy(yesterday, getLastNightDate());
+  
+  fp = fopen("./config/cold.txt", "r");
+  if (fp == NULL) {
+    printf("No such file recorded cold balls!\n");
+    return br;
+  }
+  //rewind(fp);
+
+  int goon = 1;
+  int count = 0;
+  while(goon) {
+    fgets(buf, 30, fp);
+    sscanf(buf, "%s %d %d %d %d %d %d", 
+      br.time, &br.balloldest, &br.ball2, &br.ball3, &br.ball4, &br.ball5, &br.ballmaybe);
+
+    // only need one record, stop searching once found it. 
+    if (!strcmp(br.time, yesterday)) {
+      printf("cold recoid: %s", buf);
+      goon = 0; 
+    }
+    if (count++ == 99) {
+      printf("Warn: No such day record!\n");
+      goon = 0;
+    }
+  }
+  fclose(fp);
+
+  return br;
+}
 
 void storeString2Arr(char *str, int arr[]) {
   int count = 0;
@@ -27,7 +86,7 @@ int getElementToday(char *str) {
   } else {
      ret = *(str+1) - 48; 
   }
-  return ret;
+  return ret + 1; // ret is yesterday!
 }
 
 void setOverlap(int arr[]) {
@@ -39,13 +98,14 @@ void setOverlap(int arr[]) {
   fgets(buffer, sizeof(buffer), fp);
   
   int eleToday = getElementToday(buffer+7);
+  printf("ball today: %3d\n", eleToday);
   
   char cmdReadOverlap[50] = "more config/overlap* | grep ";
   strcat(cmdReadOverlap, buffer);
   // printf("run cmd: %s", cmdReadOverlap);
   fp = popen(cmdReadOverlap, "r");
   fgets(buffer, sizeof(buffer), fp);
-  printf("record: %s", buffer);
+  printf("repe record: %s", buffer);
 
   storeString2Arr(buffer + 10, arr);
   arr[5] = eleToday;
@@ -111,11 +171,9 @@ void algo_getArrImage(int (*arr)[3], // priority: 1-[ , 2-*
     arr[3][i] = (srcArr[3][i] - 2 + 80) % 80;
     arr[4][i] = (srcArr[4][i] - 3 + 80) % 80;
   }
-  
-  arr[2][0] = srcArr[2][0] + 1;
+  arr[2][0] = srcArr[2][0] + 10;
   arr[2][1] = srcArr[2][1];
-  arr[2][2] = srcArr[2][2] - 1;
-  
+  arr[2][2] = srcArr[2][2] - 10;
 }
 
 int checkBigTotal(int (*arr)[3]){
@@ -126,7 +184,8 @@ int checkBigTotal(int (*arr)[3]){
   }
   printf("totalBig: %d\n", totalBig);
   
-  if ((totalBig * 2 - 15) > 4 || (15 - 2 * totalBig) > 4) {
+  // big:small just in {6:9, 7:8, 8:7, 9:6} 
+  if ((totalBig * 2 - 15) > 3 || (totalBig * 2 - 15) < -3) {
     printf("abandon: not average between big and small numbers!\n");
     return 0;
   } else {
@@ -140,10 +199,12 @@ int main(int argc, char** argv) {
   srand((unsigned)time(NULL));
   
   int avoidLastRes[6] = {0};
-  
   setOverlap(avoidLastRes);
+  ColdballRecord ar = getColdfromFile();
+  int avoidCold[6] = {ar.balloldest, ar.ball2, ar.ball3, ar.ball4, ar.ball5, ar.ballmaybe};
+  
   for (int i = 0; i < 6; i++)
-    printf("%-3d", avoidLastRes[i]);
+    printf("%-3d%-3d", avoidLastRes[i], avoidCold[i]);
   putchar(10);
   
   int row2[5][3] = {0};
@@ -152,6 +213,8 @@ int main(int argc, char** argv) {
       getOneRow(row[i]);
       if (existSame(row[i], sizeof(row[i])/4, avoidLastRes, 6))
     	  i--; // again
+      if (existSame(row[i], sizeof(row[i])/4, avoidCold, 6))
+         i--;
     }
 
     

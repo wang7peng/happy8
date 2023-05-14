@@ -18,13 +18,13 @@ Only play **Pick 3**, although it has 8 ways to play. When I hit all, I will get
 
 TBD
 
-## What I learn 
+## What I learn
 
 how to use C language to write program. such as
 
 1. array a[i][j] 
 
-2. read file
+2. read file with various ways, e.g. system call `fopen`.
 
 3. shell command: date, more, ...
 
