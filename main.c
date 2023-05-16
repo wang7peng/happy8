@@ -16,6 +16,27 @@ typedef struct {
 }ColdballRecord;
 
 const
+int* getInputFromKeyboard() {
+  int nAdd;
+  char check = 'n';
+  static int balls[6] = {0};
+
+  do {
+    printf("Input 6 ball today must kill: ");
+
+    for (int i = 0; i < 6; i ++) {
+      scanf("%d", &balls[i]);
+    }
+    getchar();
+
+    printf("this 6 ball today must kill? ");
+    scanf("%c", &check);
+  } while(check != 'y' && check != 'Y');
+
+  return balls;
+}
+
+const
 char* getLastNightDate() {
   FILE *fp;
   static char timeStr[10];
@@ -29,11 +50,11 @@ char* getLastNightDate() {
 ColdballRecord getColdfromFile() {
   FILE *fp;
   ColdballRecord br = {"2023-0520", 0, 0, 0, 0, 0};
-    
+
   char buf[30];  
   char yesterday[10];
   strcpy(yesterday, getLastNightDate());
-  
+
   fp = fopen("./config/cold.txt", "r");
   if (fp == NULL) {
     printf("No such file recorded cold balls!\n");
@@ -93,7 +114,7 @@ int getElementToday(char *str) {
 void setOverlap(int arr[]) {
   FILE *fp;
   char buffer[50];
-  
+
   // get time format, e.g 2023-0520
   fp = popen("date -d'1 day ago' +%Y-%m%d", "r");
   fgets(buffer, sizeof(buffer), fp);
@@ -132,20 +153,20 @@ int existSame(int arr[], int len, int src[], int src_len) {
 }
 
 // get 3 numbers from scale [1, 80]
-int getelement(int max) {
+int getelement(int max, int avoidArr[], int len) {
 
-  int avoidArr[5] = {33, 40, 41, 55};
+//  int avoidArr[5] = {33, 40, 41, 55};
   int ret = 0;
   
   while(1) {
     ret = rand() % (max + 1) + 1;
     
     int i = 0;
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < len; i++) {
 	if (ret == avoidArr[i]) 
 	    break;
     }
-    if (i==5) break;
+    if (i==len) break;
   }
   
   return ret;
@@ -154,11 +175,22 @@ int getelement(int max) {
 
 void getOneRow(int arr[]) {
   while(1) {
-        arr[0] = getelement(80);
-        arr[1] = getelement(80);
-        arr[2] = getelement(80);
+        arr[0] = getelement(80, NULL, 0);
+        arr[1] = getelement(80, NULL, 0);
+        arr[2] = getelement(80, NULL, 0);
         if (arr[0] != arr[1] && arr[0] != arr[2] && arr[1]!=arr[2])
         break;
+  }
+
+}
+
+void getOneRowLimit(int arr[], int mustKill[]) {
+  while(1) {
+    arr[0] = getelement(80, mustKill, 6);
+    arr[1] = getelement(80, mustKill, 6);
+    arr[2] = getelement(80, mustKill, 6);
+    if (arr[0] != arr[1] && arr[0] != arr[2] && arr[1]!=arr[2])
+      break;
   }
 
 }
@@ -207,15 +239,20 @@ int main(int argc, char** argv) {
   ColdballRecord ar = getColdfromFile();
   int avoidCold[6] = {ar.balloldest, ar.ball3, ar.ball4, ar.ball5, ar.ball2, ar.ballmaybe};
 
+  // int *mustKill = getInputFromKeyboard();
+  int mustKill[6] = {0};
+  memcpy(mustKill, getInputFromKeyboard(), 6 * sizeof(int));
+
+  puts("Today you will kill these balls: ");
   for (int i = 0; i < 6; i++)
-    printf("%-3d%-3d", avoidLastRes[i], avoidCold[i]);
+    printf("%-3d%-3d%-3d", avoidLastRes[i], avoidCold[i], mustKill[i]);
   putchar(10);
 
   while (1) {
     // A ticket at most has 5 different bets 
     int i;
     for (i = 0; i < 5; i++) {
-      getOneRow(row[i]);
+      getOneRowLimit(row[i], mustKill);
 
       if (existSame(row[i], sizeof(row[i])/4, avoidLastRes, 6) ||
            existSame(row[i], sizeof(row[i])/4, avoidCold, 6))
